@@ -564,7 +564,14 @@ test("filesystem Workspace captures source text and asset identity once", async 
   await writeFile(includedPath, "included-first", "utf8");
   await writeFile(outsidePath, "outside", "utf8");
   await writeFile(assetPath, new Uint8Array([1, 2, 3]));
-  await symlink(outsidePath, join(root, "escaped.svs"));
+  let escapedLink: string | undefined;
+  try {
+    await symlink(outsidePath, join(root, "escaped.svs"));
+    escapedLink = join(root, "escaped.svs");
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "EPERM" && code !== "EACCES") throw error;
+  }
   const workspace = await new NodeFilesystemWorkspace({ root }).open(entryPath);
   const entry = workspace.entry;
   await writeFile(entryPath, "second", "utf8");
@@ -586,18 +593,34 @@ test("filesystem Workspace captures source text and asset identity once", async 
   assert.equal((await workspace.attachments())[0]?.artifact.resource, firstAsset.artifact.resource);
   await assert.rejects(
     async () => await workspace.resolveSource(entry, {
-      from: "./escaped.svs",
+      from: "../outside.svs",
       alias: "escaped",
     }),
     (error: unknown) => error instanceof WorkspaceError && error.code === "SOURCE_OUTSIDE_ROOT",
   );
   await assert.rejects(
     async () => await workspace.resolveAsset(entry, {
-      from: "./escaped.svs",
+      from: "../outside.svs",
       mediaType: "application/octet-stream",
     }),
     (error: unknown) => error instanceof WorkspaceError && error.code === "SOURCE_ASSET_OUTSIDE_ROOT",
   );
+  if (escapedLink !== undefined) {
+    await assert.rejects(
+      async () => await workspace.resolveSource(entry, {
+        from: "./escaped.svs",
+        alias: "escaped",
+      }),
+      (error: unknown) => error instanceof WorkspaceError && error.code === "SOURCE_OUTSIDE_ROOT",
+    );
+    await assert.rejects(
+      async () => await workspace.resolveAsset(entry, {
+        from: "./escaped.svs",
+        mediaType: "application/octet-stream",
+      }),
+      (error: unknown) => error instanceof WorkspaceError && error.code === "SOURCE_ASSET_OUTSIDE_ROOT",
+    );
+  }
 });
 
 test("an asset root widens bytes without widening Source imports", async () => {
