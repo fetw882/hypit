@@ -11,6 +11,6 @@ export {
 } from "./execute.js";
 export { parseMediaInspection } from "./probe.js";
 export { verifyCompositableSurfaceBytes, verifyCompositableSurfaceFile } from "./surface.js";
-export { probeMediaToolchain } from "./toolchain.js";
+export { probeMediaToolchain, REQUIRED_ENCODERS, REQUIRED_FILTERS } from "./toolchain.js";
 export type { MediaToolchainState } from "./toolchain.js";
 export type * from "./execute.js";
