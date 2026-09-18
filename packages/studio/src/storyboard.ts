@@ -19,6 +19,8 @@ type VideoFacts = {
   readonly height: number;
 };
 
+const storyboardTimeoutMs = 60_000;
+
 function run(
   executable: string,
   args: readonly string[],
@@ -38,9 +40,14 @@ function run(
     const finish = (error?: Error): void => {
       if (settled) return;
       settled = true;
+      clearTimeout(timer);
       if (error === undefined) resolve(Buffer.concat(stdout));
       else reject(error);
     };
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      finish(new Error(`${executable} storyboard timed out after ${storyboardTimeoutMs} ms`));
+    }, storyboardTimeoutMs);
     child.stdout.on("data", (chunk: Buffer) => {
       outputBytes += chunk.byteLength;
       if (outputBytes > maxOutputBytes) {
