@@ -47,8 +47,9 @@ report the read error rather than treating corruption as a missing credential.
 ## Storage
 
 The default directory is `credentials` under the Host state root printed by `hypit paths`.
-`config.path` explicitly selects a directory, including an absolute directory outside that root;
-relative paths resolve against the Host root.
+`config.path` explicitly selects a directory, including an absolute directory outside that root
+(for example a WSL Linux home while the Host root is on a Windows-mounted drive). Relative paths
+resolve against the Host root and must stay inside it.
 Opening the adapter and reading an absent key do not create files. Keep this directory outside Git.
 On WSL, the default under the Linux home uses normal Linux permissions. If the Host state root is
 on a Windows-mounted drive, set this Store's `config.path` to a private directory in the WSL Linux

@@ -44,9 +44,10 @@ credential stored in a locker stays in that locker; a credential stored in a fil
 
 ## Configuration
 
-- `path` selects the directory for Linux file storage, resolved against the Host state root printed by
-  `hypit paths`. The default is the same `credentials` directory `@hypit/credential-store-file` uses,
-  so on Linux, switching between the two Stores finds the credential already stored.
+- `path` selects the directory for Linux file storage. Relative paths resolve against the Host state
+  root printed by `hypit paths` and must stay inside it. An absolute directory may sit outside that
+  root. The default is the same `credentials` directory `@hypit/credential-store-file` uses, so on
+  Linux, switching between the two Stores finds the credential already stored.
 - WSL uses the Linux file Store. If the Host state root is on a Windows-mounted drive, select a
   private directory in the WSL Linux filesystem with `path`; the Store keeps its permission check.
 - `service` selects the locker service name. The OS Store's own default applies when it is absent.
