@@ -1,5 +1,5 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { HyperframesDocument } from "@hypit/hyperframes";
 import type { MediaFrameRange } from "@hypit/media";
 import type { HyperframesRenderProgress, resolveExecutionOptions } from "./render.js";
@@ -9,6 +9,16 @@ import { distributeFrameRange, sourceFrameAt, sourceWindows, videoSlots } from "
 import { renderWorkerLimit } from "./render.js";
 import { CaptureConcurrency } from "./concurrency.js";
 import { createOpaqueFrameCapture } from "./opaque-capture.js";
+
+/** Resolve one staged media path; Host locators use `..` / `..${sep}`, not String.startsWith. */
+export function resolveStagedSource(work: string, src: string): string {
+  const root = resolve(work);
+  const path = resolve(root, src);
+  const relation = relative(root, path);
+  assert(relation !== ".." && !relation.startsWith(`..${sep}`) && !isAbsolute(relation),
+    "HyperFrames source is outside the staged project");
+  return path;
+}
 
 export type CaptureInput = {
   readonly document: Pick<HyperframesDocument, "frameRate" | "frameCount" | "canvas">;
@@ -90,8 +100,7 @@ export async function captureStagedVisual(input: CaptureInput, controller: Abort
       count + window.endFrameExclusive - window.startFrame, 0), 0);
     if (sourceTotal > 0) onProgress({ phase: "decoding", completed: 0, total: sourceTotal, elapsedMs: elapsedMs() });
     for (const source of windows) {
-      const path = resolve(work, source.src);
-      assert(path.startsWith(`${work}${sep}`), "HyperFrames source is outside the staged project");
+      const path = resolveStagedSource(work, source.src);
       const frames = new Map<number, string>();
       let width = 0, height = 0;
       for (const window of source.windows) {
