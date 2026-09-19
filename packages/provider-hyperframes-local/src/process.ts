@@ -16,17 +16,33 @@ export function positiveInteger(value: number, subject: string): number {
   return value;
 }
 
+/** Windows PATHEXT suffixes for a bare command; a name that already has an extension is used as written. */
+export function mediaExecutableSuffixes(
+  value: string,
+  platform: NodeJS.Platform = process.platform,
+  pathext: string | undefined = process.env.PATHEXT,
+): readonly string[] {
+  if (platform !== "win32" || /\.[^\\/]+$/u.test(value)) return [""];
+  const listed = (pathext ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean);
+  return listed.length === 0 ? [""] : listed;
+}
+
 /** The engine's binary override requires a path; resolve our selected command without its fallback search. */
-export async function mediaExecutablePath(value: string): Promise<string> {
+export async function mediaExecutablePath(value: string, options: {
+  readonly platform?: NodeJS.Platform;
+  readonly path?: string;
+  readonly pathext?: string;
+} = {}): Promise<string> {
+  const platform = options.platform ?? process.platform;
   const pathLike = isAbsolute(value) || value.includes("/") || value.includes("\\");
   const bases = pathLike ? [resolve(value)]
-    : (process.env.PATH ?? "").split(delimiter).filter(Boolean).map(directory => resolve(directory, value));
-  const extensions = process.platform === "win32" && !/\.[^\\/]+$/u.test(value) ? [".exe", ".com", ""] : [""];
+    : (options.path ?? process.env.PATH ?? "").split(delimiter).filter(Boolean).map(directory => resolve(directory, value));
+  const extensions = mediaExecutableSuffixes(value, platform, options.pathext ?? process.env.PATHEXT);
   for (const base of bases) for (const extension of extensions) {
     const candidate = `${base}${extension}`;
     try {
       if (!(await stat(candidate)).isFile()) continue;
-      await access(candidate, process.platform === "win32" ? constants.F_OK : constants.X_OK);
+      await access(candidate, platform === "win32" ? constants.F_OK : constants.X_OK);
       return candidate;
     } catch (error) {
       if (!["ENOENT", "ENOTDIR", "EACCES"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
