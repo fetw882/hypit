@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
@@ -52,6 +52,21 @@ test("snapshot invokes the selected Profile once and writes original-frame PNGs 
     await assert.rejects(runSnapshotCli(["snapshot", "index.html", "--at-frame", "12", "--to", "bad"], { write() {} }, environment), /\[0, 12\)/u);
     await assert.rejects(runSnapshotCli(["snapshot", "index.html", "--at-frame", "3,3", "--to", "bad"], { write() {} }, environment), /strictly increasing/u);
     assert.equal(calls, 1);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test("snapshot refuses local HTML assets that resolve outside the HTML directory", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "hypit-snapshot-contain-"));
+  try {
+    const nested = join(directory, "picture");
+    await mkdir(nested);
+    await writeFile(join(nested, "index.html"), html.replace('src="still.png"', 'src="../secret.png"'));
+    await writeFile(join(directory, "secret.png"), await sharp({ create: { width: 96, height: 64, channels: 3, background: "red" } }).png().toBuffer());
+    const environment: CreationEnvironment = { cwd: nested, openHost: async () => ({ profile: "empty.json", host: {
+      providers: async () => [], invoke: async () => { throw new Error("must not run"); },
+    } }) };
+    await assert.rejects(runSnapshotCli(["snapshot", "index.html", "--at-frame", "0", "--to", "out"], { write() {} }, environment),
+      /leaves the HTML directory/u);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 

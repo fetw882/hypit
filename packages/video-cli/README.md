@@ -83,7 +83,8 @@ hypit snapshot ./picture/index.html --at-frame 240 --to evidence/detail
 ```
 
 `--studio` reads Studio's current compiled document and its declared resources; a path or HTML URL
-reads materialized HTML with inline scripts/styles and directly addressed media/fonts. The Profile's
+reads materialized HTML with inline scripts/styles and directly addressed media/fonts. Local file
+assets must stay inside the HTML file's directory. The Profile's
 `@hypit/render-hyperframes@1#render-frames` Endpoint returns PNGs in selected-frame order.
 `--runtime` and `--workspace` select the environment just as for `transcribe`. The call streams
 resources through a temporary `FileResourceStore`, writes full-size PNGs and optional grid pages,

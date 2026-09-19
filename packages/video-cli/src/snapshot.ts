@@ -1,7 +1,7 @@
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, mkdtemp, readFile, rename, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, extname, join, resolve } from "node:path";
+import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
@@ -24,13 +24,18 @@ const MEDIA_TYPES: Readonly<Record<string, string>> = {
 async function readProject(source: string, html: string, resources: FileResourceStore): Promise<HyperframesHtmlProject> {
   const assets = [];
   const base = /^https?:/u.test(source) ? new URL(source) : pathToFileURL(source);
+  const htmlRoot = base.protocol === "file:" ? resolve(dirname(fileURLToPath(base))) : undefined;
   for (const url of hyperframesHtmlAssetUrls(html)) {
     const address = new URL(url, base);
     let mediaType: string | undefined;
     let stream: Readable;
     if (address.protocol === "file:") {
-      if (base.protocol !== "file:") throw new Error(`Network HTML cannot read local asset ${url}`);
-      const path = fileURLToPath(address);
+      if (base.protocol !== "file:" || htmlRoot === undefined) throw new Error(`Network HTML cannot read local asset ${url}`);
+      const path = resolve(fileURLToPath(address));
+      const relation = relative(htmlRoot, path);
+      if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) {
+        throw new Error(`Snapshot asset ${url} leaves the HTML directory`);
+      }
       mediaType = MEDIA_TYPES[extname(path).toLowerCase()];
       if (mediaType === undefined) throw new Error(`Unsupported snapshot asset ${url}; use compiled HTML with inline scripts and styles`);
       stream = createReadStream(path);
