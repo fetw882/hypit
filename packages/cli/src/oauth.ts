@@ -35,16 +35,29 @@ export type AuthorizeBrowserLaunch = {
   readonly env?: Readonly<Record<string, string>>;
 };
 
+export type AuthorizeBrowserLaunchOptions = {
+  readonly platform?: NodeJS.Platform;
+  readonly comSpec?: string;
+  /** WSL interop uses Windows `cmd /c start`; native Linux uses `xdg-open`. */
+  readonly wsl?: boolean;
+};
+
+function runningOnWsl(platform: NodeJS.Platform, env: NodeJS.ProcessEnv = process.env): boolean {
+  return platform === "linux" && typeof env.WSL_DISTRO_NAME === "string" && env.WSL_DISTRO_NAME.length > 0;
+}
+
 /**
  * Open the authorize URL in a browser. Windows `cmd /c start` treats `&` as a command
  * separator unless the URL is a later quoted token after an explicit window title.
+ * WSL is Linux to Node, so `xdg-open` never reaches that Windows browser.
  */
 export function authorizeBrowserLaunch(
   url: string,
-  options: { readonly platform?: NodeJS.Platform; readonly comSpec?: string } = {},
+  options: AuthorizeBrowserLaunchOptions = {},
 ): AuthorizeBrowserLaunch {
   const platform = options.platform ?? process.platform;
-  if (platform === "win32") {
+  const wsl = options.wsl ?? runningOnWsl(platform);
+  if (platform === "win32" || wsl) {
     // Expand one environment value after cmd parses the command. Interpolating the
     // URL into command text would also expand percent sequences inside the URL.
     const serialized = new URL(url).href;

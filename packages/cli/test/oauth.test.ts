@@ -89,7 +89,12 @@ test("Windows authorize launch quotes the URL so cmd does not split on query amp
   assert.deepEqual(launch.args, ["/d", "/s", "/v:off", "/c", 'start "" "%HYPIT_OAUTH_AUTHORIZE_URL%"']);
   assert.equal(launch.env?.HYPIT_OAUTH_AUTHORIZE_URL, url);
   assert.equal(authorizeBrowserLaunch(url, { platform: "darwin" }).command, "open");
-  assert.deepEqual(authorizeBrowserLaunch(url, { platform: "linux" }).args, [url]);
+  assert.deepEqual(authorizeBrowserLaunch(url, { platform: "linux", wsl: false }).args, [url]);
+  const wsl = authorizeBrowserLaunch(url, { platform: "linux", wsl: true, comSpec: "cmd.exe" });
+  assert.equal(wsl.command, "cmd.exe");
+  assert.equal(wsl.windowsVerbatimArguments, true);
+  assert.deepEqual(wsl.args, ["/d", "/s", "/v:off", "/c", 'start "" "%HYPIT_OAUTH_AUTHORIZE_URL%"']);
+  assert.equal(wsl.env?.HYPIT_OAUTH_AUTHORIZE_URL, url);
 });
 
 test("Windows start preserves the entire serialized OAuth URL through cmd", {
